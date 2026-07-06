@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知北和+1的时光记录本 🌌</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=ZhiMangXing&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 50%, #2e103f 100%);
+            font-family: 'Noto Serif SC', serif;
+            overflow-x: hidden;
+        }
+        .handwritten {
+            font-family: 'ZhiMangXing', cursive;
+        }
+        .masonry {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-gap: 28px;
+        }
+        .polaroid-card {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .polaroid-card:hover {
+            transform: translateY(-10px) rotate(1.5deg);
+        }
+
+        /* 全局薄雾柔光滤镜 */
+        .mist-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.03) 0%, transparent 70%);
+            backdrop-blur-[0.5px];
+        }
+
+        /* 星空与高级六角雪花底层 */
+        #fxCanvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 1;
+        }
+
+        /* 隐藏横向滚动条 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 自定义垂直滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 antialiased pb-32 relative">
+
+    <canvas id="fxCanvas"></canvas>
+    <div class="mist-overlay"></div>
+
+    <div class="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/40 to-transparent pointer-events-none z-10"></div>
+
+    <header class="max-w-6xl mx-auto pt-16 pb-8 px-4 text-center relative z-20">
+        
+        <div class="inline-flex items-center gap-1 bg-white/5 border border-white/10 p-1 rounded-full mb-6 backdrop-blur-xl shadow-2xl">
+            <button id="globalUser-me" onclick="setGlobalUser('me')" class="px-5 py-2 rounded-full text-xs font-medium transition-all duration-300 bg-sky-500/30 text-sky-200 border border-sky-400/30 shadow-inner">
+                🐟 切换到：宝宝
+            </button>
+            <button id="globalUser-partner" onclick="setGlobalUser('partner')" class="px-5 py-2 rounded-full text-xs font-medium transition-all duration-300 text-slate-400 hover:text-slate-200">
+                🦋 切换到：+1 
+            </button>
+        </div>
+
+        <h1 class="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-300 via-purple-200 to-amber-200 mb-4 drop-shadow-md tracking-wide">
+            ✨ 知北与+1的时光记录本
+        </h1>
+        
+        <div class="inline-block bg-white/10 backdrop-blur-md border border-white/10 px-6 py-2 rounded-full my-3 shadow-lg">
+            <p class="text-sm md:text-base font-light tracking-wide text-rose-200">
+                ❤️ 我们已经在一起 <span id="daysCount" class="text-xl md:text-2xl font-bold text-white px-1 font-mono">0</span> 天
+            </p>
+        </div>
+
+        <p class="mt-4 px-4 text-slate-300 md:text-lg handwritten text-2xl max-w-2xl mx-auto leading-relaxed">
+            “想此时你在某处，也如我一般，将目光投向远方，那里有我们共同的星辰。”
+        </p>
+        
+        <div class="mt-10 flex flex-wrap justify-center gap-4">
+            <button onclick="openModal('uploadModal')" class="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white px-7 py-3 rounded-full shadow-lg transition flex items-center gap-2 font-medium">
+                <i class="fa-solid fa-cloud-arrow-up"></i> 封存新瞬间
+            </button>
+            <button onclick="copyShareLink()" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md px-7 py-3 rounded-full shadow-md transition flex items-center gap-2 font-medium">
+                <i class="fa-solid fa-share-nodes text-rose-300"></i> 复制分享链接
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 mt-8 relative z-20">
+        <div id="photoWall" class="masonry">
+            <div id="emptyState" class="col-span-full text-center py-24 bg-white/5 backdrop-blur-md rounded-3xl border border-dashed border-white/20">
+                <i class="fa-regular fa-star text-4xl text-rose-300/40 mb-4 animate-pulse"></i>
+                <p class="text-slate-400">银河里还没有星星，点击“封存新瞬间”点亮你们的第一张照片吧 ✨</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="uploadModal" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900/90 border border-white/10 text-slate-100 rounded-3xl max-w-md w-full p-6 shadow-2xl transform scale-95 transition-all duration-300">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-200">添加新的美好瞬间</h3>
+                <button onclick="closeModal('uploadModal')" class="text-slate-400 hover:text-slate-200 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="border-2 border-dashed border-slate-700 bg-slate-800/50 hover:bg-slate-800 rounded-2xl p-6 text-center cursor-pointer relative transition" id="dropZone">
+                    <input type="file" id="fileInput" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="handleFileSelect(event)">
+                    <div id="uploadPrompt">
+                        <i class="fa-solid fa-image text-4xl text-rose-400/80 mb-2"></i>
+                        <p class="text-sm text-slate-300 font-medium">点击或将照片拖拽到这里</p>
+                    </div>
+                    <img id="imagePreview" class="hidden max-h-48 mx-auto rounded-lg shadow-lg object-contain" src="" alt="Preview">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-400 mb-1">写下此刻的第一条小评语</label>
+                    <textarea id="captionInput" rows="3" class="w-full bg-slate-800 text-slate-100 px-4 py-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-500 transition resize-none text-sm" placeholder="这一刻的星空下，我有话想对你说..."></textarea>
+                </div>
+
+                <button onclick="savePhoto()" class="w-full bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-medium py-3 rounded-xl shadow-lg transition">
+                    投递到星空 ✨
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="lightboxModal" class="fixed inset-0 bg-black/80 backdrop-blur-xl z-50 hidden flex items-center justify-center p-3 md:p-6" onclick="closeModal('lightboxModal')">
+        <button class="absolute top-6 right-6 text-white/50 hover:text-white text-3xl z-50"><i class="fa-solid fa-xmark"></i></button>
+        
+        <div class="bg-slate-900/90 border border-white/10 rounded-2xl max-w-5xl w-full max-h-[92vh] md:max-h-[85vh] flex flex-col md:flex-row overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+            
+            <div class="md:w-3/5 bg-black/40 flex flex-col items-center justify-center p-4 relative min-h-[350px] md:min-h-0 border-b md:border-b-0 md:border-r border-white/10">
+                <div class="relative max-w-full max-h-[45vh] md:max-h-[70vh] inline-block" id="stickerContainer">
+                    <img id="lightboxImg" class="max-w-full max-h-[45vh] md:max-h-[70vh] object-contain rounded" src="" alt="Large view">
+                    <div id="stickersLayer" class="absolute inset-0 pointer-events-none select-none z-20"></div>
+                    <div class="absolute inset-0 cursor-crosshair z-10" onclick="addStickerToPhoto(event)"></div>
+                </div>
+                
+                <div class="mt-4 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex items-center gap-2 overflow-x-auto max-w-full no-scrollbar backdrop-blur-md">
+                    <span class="text-[11px] text-slate-400 border-r border-white/10 pr-2 whitespace-nowrap"><i class="fa-regular fa-face-smile text-rose-300"></i> 选择贴纸并点图放置:</span>
+                    <div class="flex gap-2.5 text-xl" id="emojiTray">
+                        <button onclick="selectSticker('🥰')" class="emoji-item transform hover:scale-130 transition">🥰</button>
+                        <button onclick="selectSticker('🥺')" class="emoji-item transform hover:scale-130 transition">🥺</button>
+                        <button onclick="selectSticker('😭')" class="emoji-item transform hover:scale-130 transition">😭</button>
+                        <button onclick="selectSticker('😚')" class="emoji-item transform hover:scale-130 transition">😚</button>
+                        <button onclick="selectSticker('😍')" class="emoji-item transform hover:scale-130 transition">😍</button>
+                        <button onclick="selectSticker('🐱')" class="emoji-item transform hover:scale-130 transition">🐱</button>
+                        <button onclick="selectSticker('💖')" class="emoji-item transform hover:scale-130 transition">💖</button>
+                        <button onclick="selectSticker('🌟')" class="emoji-item transform hover:scale-130 transition">🌟</button>
+                        <button onclick="selectSticker('❄️')" class="emoji-item transform hover:scale-130 transition">❄️</button>
+                        <button onclick="selectSticker('🎈')" class="emoji-item transform hover:scale-130 transition">🎈</button>
+                        <button onclick="selectSticker('🌹')" class="emoji-item transform hover:scale-130 transition">🌹</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="md:w-2/5 flex flex-col bg-slate-950/40 p-5 overflow-hidden">
+                <div class="pb-3 border-b border-white/10 flex justify-between items-center">
+                    <div>
+                        <span class="text-xs text-rose-300 font-sans tracking-widest block uppercase">Winter Timeline</span>
+                        <span id="lightboxTime" class="text-[10px] text-slate-500 font-mono"></span>
+                    </div>
+                    <span id="activeBadge" class="text-[10px] px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 font-medium">当前身份：知北</span>
+                </div>
+
+                <div id="commentsList" class="flex-grow overflow-y-auto my-4 space-y-4 pr-1 no-scrollbar flex flex-col">
+                    </div>
+
+                <div class="pt-3 border-t border-white/10 space-y-2">
+                    <div class="flex gap-2">
+                        <input type="text" id="newCommentInput" class="flex-grow bg-slate-900 border border-slate-700 text-slate-100 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-rose-500" placeholder="写点什么，留下你的温度...">
+                        <button onclick="appendComment()" class="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white px-5 rounded-xl text-xs font-medium transition tracking-wider whitespace-nowrap">
+                            发送
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-white text-slate-900 text-xs font-medium px-6 py-3 rounded-full shadow-2xl z-50 opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-2 border border-slate-200"></div>
+
+    <script>
+        let photosData = [];
+        let currentTempSrc = "";
+        let currentViewingPhotoId = null;
+        let activeUser = 'me'; 
+        let activeSticker = '🥰'; 
+
+        // 1. 初始化设置（引入 localStorage 本地持久化缓存）
+        window.addEventListener('DOMContentLoaded', () => {
+            calculateDays();
+            initCanvasEngine();
+            highlightSelectedSticker('🥰');
+            
+            // 先尝试从本地浏览器缓存里加载之前存好的数据
+            const localData = localStorage.getItem('romantic_timeline_data');
+            if (localData) {
+                try {
+                    photosData = JSON.parse(localData);
+                } catch(e) {
+                    console.error("读取缓存失败", e);
+                }
+            }
+
+            // 再判断是不是通过别人发来的“新分享链接”打开的
+            const urlParams = new URLSearchParams(window.location.search);
+            const sharedData = urlParams.get('data');
+            if (sharedData) {
+                try {
+                    const decodedData = JSON.parse(decodeURIComponent(atob(sharedData)));
+                    if (Array.isArray(decodedData) && decodedData.length > 0) {
+                        // 把分享链接里的新瞬间和本地旧瞬间合并，并去重（通过id判断）
+                        const combined = [...decodedData, ...photosData];
+                        const uniqueMap = new Map();
+                        combined.forEach(item => {
+                            if(!uniqueMap.has(item.id)) {
+                                uniqueMap.set(item.id, item);
+                            }
+                        });
+                        photosData = Array.from(uniqueMap.values());
+                        // 及时同步写回本地数据库
+                        saveToLocal();
+                        showToast("✨ 成功同步并解锁了对方分享来的新瞬间！");
+                        
+                        // 清理掉网址后面长长的尾巴，还主界面一片清爽
+                        const cleanUrl = window.location.origin + window.location.pathname;
+                        window.history.replaceState({}, '', cleanUrl);
+                    }
+                } catch (e) {
+                    showToast("❌ 收到了一封损坏的时光信笺");
+                }
+            }
+            renderPhotoWall();
+        });
+
+        // 保存到浏览器本地数据库
+        function saveToLocal() {
+            localStorage.setItem('romantic_timeline_data', JSON.stringify(photosData));
+        }
+
+        // 2. 恋爱天数计算 (从 2026-05-30 开始计算)
+        function calculateDays() {
+            const startDate = new Date('2026-05-30T00:00:00');
+            const today = new Date();
+            const timeDiff = today.getTime() - startDate.getTime();
+            const daysCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+            document.getElementById('daysCount').innerText = daysCount;
+        }
+
+        // 3. 身份路由逻辑
+        function setGlobalUser(role) {
+            activeUser = role;
+            const btnMe = document.getElementById('globalUser-me');
+            const btnPartner = document.getElementById('globalUser-partner');
+            const badge = document.getElementById('activeBadge');
+
+            if(role === 'me') {
+                btnMe.className = "px-5 py-2 rounded-full text-xs font-medium transition-all duration-300 bg-sky-500/30 text-sky-200 border border-sky-400/30 shadow-inner";
+                btnPartner.className = "px-5 py-2 rounded-full text-xs font-medium transition-all duration-300 text-slate-400 hover:text-slate-200";
+                if(badge) {
+                    badge.innerText = "当前身份：知北";
+                    badge.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30 font-medium";
+                }
+                showToast("❄️ 身份已切至 知北，您的评语将靠左展示");
+            } else {
+                btnMe.className = "px-5 py-2 rounded-full text-xs font-medium transition-all duration-300 text-slate-400 hover:text-slate-200";
+                btnPartner.className = "px-5 py-2 rounded-full text-xs font-medium transition-all duration-300 bg-rose-500/30 text-rose-200 border border-rose-400/30 shadow-inner";
+                if(badge) {
+                    badge.innerText = "当前身份：+1";
+                    badge.className = "text-[10px] px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium";
+                }
+                showToast("✨ 身份已切至 +1，您的评语将靠右展示");
+            }
+        }
+
+        // 4. 高级 Canvas 动画引擎（多层立体雪花算法）
+        function initCanvasEngine() {
+            const canvas = document.getElementById('fxCanvas');
+            const ctx = canvas.getContext('2d');
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            window.addEventListener('resize', () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            });
+
+            let starArray = [];
+            let flakeArray = [];
+
+            for(let i=0; i<60; i++) {
+                starArray.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height * 0.7,
+                    size: 0.8 + Math.random() * 1.5,
+                    opacity: 0.2 + Math.random() * 0.8,
+                    speed: 0.01 + Math.random() * 0.03
+                });
+            }
+
+            for(let i=0; i<45; i++) {
+                flakeArray.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    size: 2 + Math.random() * 5,
+                    depth: Math.random(), 
+                    angle: Math.random() * Math.PI * 2,
+                    spin: (Math.random() - 0.5) * 0.03
+                });
+            }
+
+            function drawHexFlake(x, y, size, angle) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = size * 0.15;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(0, -size);
+                    ctx.moveTo(0, -size * 0.5);
+                    ctx.lineTo(-size * 0.25, -size * 0.6);
+                    ctx.moveTo(0, -size * 0.5);
+                    ctx.lineTo(size * 0.25, -size * 0.6);
+                    ctx.rotate(Math.PI / 3);
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+
+                starArray.forEach(s => {
+                    s.opacity += s.speed;
+                    if(s.opacity > 1 || s.opacity < 0.2) s.speed = -s.speed;
+                    ctx.fillStyle = `rgba(255,255,255,${s.opacity})`;
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                flakeArray.forEach(f => {
+                    f.y += 0.5 + f.depth * 0.8;
+                    f.x += Math.sin(f.y * 0.01) * 0.3;
+                    f.angle += f.spin;
+
+                    if(f.y > height + 10) {
+                        f.y = -10;
+                        f.x = Math.random() * width;
+                    }
+                    drawHexFlake(f.x, f.y, f.size, f.angle);
+                });
+
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        // 5. 弹窗控制架构
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.querySelector('.transform').classList.remove('scale-95'), 10);
+        }
+
+        // 加大力度压缩：防止单张照片体积过大撑爆分享链接限制
+        function compressImage(src, maxWidth, callback) {
+            const img = new Image();
+            img.src = src;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                // 压缩质量降至 0.5，最大宽度降低，大幅减小体积，以便分享
+                callback(canvas.toDataURL('image/jpeg', 0.5));
+            };
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if(modal.querySelector('.transform')) {
+                modal.querySelector('.transform').classList.add('scale-95');
+            }
+            setTimeout(() => modal.classList.add('hidden'), 150);
+            if (id === 'uploadModal') resetUploadForm();
+            if (id === 'lightboxModal') currentViewingPhotoId = null;
+        }
+
+        // 6. 图像存贮归档与无损压缩
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                // 将原 480 调整为 360，大幅瘦身，防止 Base64 塞不进链接里
+                compressImage(e.target.result, 360, (compressedSrc) => {
+                    currentTempSrc = compressedSrc;
+                    document.getElementById('uploadPrompt').classList.add('hidden');
+                    const preview = document.getElementById('imagePreview');
+                    preview.src = compressedSrc;
+                    preview.classList.remove('hidden');
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function savePhoto() {
+            const caption = document.getElementById('captionInput').value.trim();
+            if (!currentTempSrc) {
+                showToast("🌌 先投递一张属于你们的星空照片吧！");
+                return;
+            }
+
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+            const newPhoto = {
+                id: Date.now(),
+                src: currentTempSrc,
+                stickers: [], 
+                comments: [{
+                    text: caption || "在遥远的群星深处，记录下此时的温柔。",
+                    user: activeUser, 
+                    time: timeStr
+                }],
+                time: `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`
+            };
+
+            photosData.unshift(newPhoto);
+            saveToLocal(); // 存储到本地缓存
+            renderPhotoWall();
+            closeModal('uploadModal');
+            showToast("💖 时光已封存进浪漫星夜！");
+        }
+
+        function deletePhoto(id, event) {
+            event.stopPropagation();
+            if(confirm("确定要删除这个美好的时光瞬间吗？")) {
+                photosData = photosData.filter(photo => photo.id !== id);
+                saveToLocal(); // 存储到本地缓存
+                renderPhotoWall();
+                showToast("🗑 nighttime memory removed");
+            }
+        }
+
+        // 7. 照片主墙渲染引擎
+        function renderPhotoWall() {
+            const wall = document.getElementById('photoWall');
+            const emptyState = document.getElementById('emptyState');
+            
+            const cards = wall.querySelectorAll('.polaroid-card');
+            cards.forEach(card => card.remove());
+
+            if (photosData.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            photosData.forEach(photo => {
+                const card = document.createElement('div');
+                card.className = "polaroid-card bg-white p-4 pb-5 rounded-sm shadow-2xl flex flex-col cursor-pointer relative group text-slate-800";
+                card.onclick = () => openLightbox(photo);
+                
+                const latestComment = photo.comments[photo.comments.length - 1].text;
+
+                card.innerHTML = `
+                    <button onclick="deletePhoto(${photo.id}, event)" class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition duration-200 z-30">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+
+                    <div class="overflow-hidden rounded-sm bg-slate-900 flex-grow aspect-[4/5] relative">
+                        <img src="${photo.src}" class="w-full h-full object-cover" alt="Memory">
+                        <div class="absolute inset-0 pointer-events-none select-none text-xs">
+                            ${photo.stickers.map(st => `<span class="absolute" style="top:${st.top}%; left:${st.left}%; transform: translate(-50%,-50%);">${st.emoji}</span>`).join('')}
+                        </div>
+                    </div>
+                    <div class="mt-4 flex-grow flex flex-col justify-between">
+                        <p class="handwritten text-xl text-slate-700 leading-relaxed line-clamp-2">${latestComment}</p>
+                        <div class="mt-3 pt-2 border-t border-dashed border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-sans tracking-widest">
+                            <span>✨ ICE WORLD</span>
+                            <span>${photo.time}</span>
+                        </div>
+                    </div>
+                `;
+                wall.appendChild(card);
+            });
+        }
+
+        // 8. 深度交互式看图面板与高级挂载贴纸
+        function openLightbox(photo) {
+            currentViewingPhotoId = photo.id;
+            document.getElementById('lightboxImg').src = photo.src;
+            document.getElementById('lightboxTime').innerText = `收录时间：${photo.time}`;
+            
+            setGlobalUser(activeUser);
+            renderStickerLayer(photo);
+            renderLightboxComments(photo);
+            openModal('lightboxModal');
+        }
+
+        function selectSticker(emoji) {
+            activeSticker = emoji;
+            highlightSelectedSticker(emoji);
+            showToast(`已选定贴纸 ${emoji}，现在只需直接点击左侧图片任意位置！`);
+        }
+
+        function highlightSelectedSticker(emoji) {
+            const buttons = document.querySelectorAll('#emojiTray button');
+            buttons.forEach(btn => {
+                if(btn.innerText === emoji) {
+                    btn.className = "emoji-item transform scale-130 bg-white/20 rounded-lg p-1 transition ring-1 ring-rose-300";
+                } else {
+                    btn.className = "emoji-item transform hover:scale-130 transition p-1";
+                }
+            });
+        }
+
+        function addStickerToPhoto(event) {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const xPct = ((event.clientX - rect.left) / rect.width) * 100;
+            const yPct = ((event.clientY - rect.top) / rect.height) * 100;
+
+            const photo = photosData.find(p => p.id === currentViewingPhotoId);
+            if(photo) {
+                photo.stickers.push({
+                    emoji: activeSticker,
+                    top: yPct.toFixed(2),
+                    left: xPct.toFixed(2)
+                });
+                renderStickerLayer(photo);
+                renderPhotoWall(); 
+                saveToLocal(); // 状态同步写回本地数据库
+            }
+        }
+
+        function renderStickerLayer(photo) {
+            const layer = document.getElementById('stickersLayer');
+            layer.innerHTML = '';
+            photo.stickers.forEach(st => {
+                const span = document.createElement('span');
+                span.className = "absolute text-3xl filter drop-shadow-[0_4px_6px_rgba(0,0,0,0.3)] select-none animate-pulse-slow";
+                span.style.top = `${st.top}%`;
+                span.style.left = `${st.left}%`;
+                span.style.transform = `translate(-50%, -50%)`;
+                span.innerText = st.emoji;
+                layer.appendChild(span);
+            });
+        }
+
+        // 9. 不对称双向评论对话板生成树
+        function renderLightboxComments(photo) {
+            const listContainer = document.getElementById('commentsList');
+            listContainer.innerHTML = '';
+
+            photo.comments.forEach(comment => {
+                const wrapper = document.createElement('div');
+                const isMe = comment.user === 'me'; 
+
+                if(isMe) {
+                    wrapper.className = "self-start max-w-[85%] flex flex-col items-start";
+                    wrapper.innerHTML = `
+                        <div class="bg-sky-500/10 border border-sky-400/20 px-4 py-2.5 rounded-2xl rounded-tl-none backdrop-blur-xl shadow-lg">
+                            <p class="text-sm text-sky-100 handwritten text-lg leading-relaxed">${comment.text}</p>
+                        </div>
+                        <span class="text-[9px] text-sky-400/60 font-mono mt-1 ml-1">知北 • ${comment.time}</span>
+                    `;
+                } else {
+                    wrapper.className = "self-end max-w-[85%] flex flex-col items-end";
+                    wrapper.innerHTML = `
+                        <div class="bg-rose-500/10 border border-rose-400/20 px-4 py-2.5 rounded-2xl rounded-tr-none backdrop-blur-xl shadow-lg">
+                            <p class="text-sm text-rose-100 handwritten text-lg leading-relaxed">${comment.text}</p>
+                        </div>
+                        <span class="text-[9px] text-rose-400/60 font-mono mt-1 mr-1">+1 • ${comment.time}</span>
+                    `;
+                }
+                listContainer.appendChild(wrapper);
+            });
+            listContainer.scrollTop = listContainer.scrollHeight;
+        }
+
+        function appendComment() {
+            const input = document.getElementById('newCommentInput');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const photo = photosData.find(p => p.id === currentViewingPhotoId);
+            if (photo) {
+                const now = new Date();
+                const timeStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+                
+                photo.comments.push({ 
+                    text: text, 
+                    user: activeUser, 
+                    time: timeStr 
+                });
+                
+                renderLightboxComments(photo);
+                renderPhotoWall();
+                saveToLocal(); // 数据落盘缓存
+                input.value = '';
+                showToast("✍️ 成功刻录一条时光追评");
+            }
+        }
+
+        // 10. 共享分流（仅分享最新的一张，防止数据过多导致链接崩溃）
+        function generateShareUrl() {
+            if(photosData.length === 0) return window.location.origin + window.location.pathname;
+            // 核心修改：生成分享链接时，只打包最新上传的那一张照片数据 [photosData[0]]
+            // 这样既能实现把新瞬间发送给对方的目的，又确保了长连接永远不会超出浏览器的体积上限！
+            const sharePackage = [photosData[0]];
+            const jsonStr = JSON.stringify(sharePackage);
+            const b64Str = btoa(encodeURIComponent(jsonStr));
+            
+            // 获取一个干净的基准基础 URL 
+            let baseUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            return `${baseUrl}?data=${b64Str}`;
+        }
+
+        function copyShareLink() {
+            if (photosData.length === 0) {
+                showToast("🌌 至少封存一张照片再分享哦～");
+                return;
+            }
+            const shareUrl = generateShareUrl();
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                showToast("🚀 最新的一枚时光信笺已打包！快发给对方解锁吧！");
+            }).catch(() => {
+                showToast("❌ 复制失败，请尝试部署到线上后再试");
+            });
+        }
+
+        function resetUploadForm() {
+            currentTempSrc = "";
+            document.getElementById('uploadPrompt').classList.remove('hidden');
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('imagePreview').src = "";
+            document.getElementById('captionInput').value = "";
+            document.getElementById('fileInput').value = "";
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerHTML = message;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
